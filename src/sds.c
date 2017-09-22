@@ -128,11 +128,11 @@ void sdsclear(sds s) {
  * by sdslen(), but only the free buffer space we have. */
 sds sdsMakeRoomFor(sds s, size_t addlen) {
     struct sdshdr *sh, *newsh;
-	// 目前还未使用的字节数
+    // 目前还未使用的字节数
     size_t free = sdsavail(s);
     size_t len, newlen;
 	
-	// 如果还未使用的字节数大于待分配的字节数，无需扩大buf空间
+    // 如果还未使用的字节数大于待分配的字节数，无需扩大buf空间
     if (free >= addlen) return s;
     len = sdslen(s);
     sh = (void*) (s-(sizeof(struct sdshdr)));
@@ -141,7 +141,7 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
         newlen *= 2;
     else
         newlen += SDS_MAX_PREALLOC;
-	// 额外的1字节用于保存空字符
+    // 额外的1字节用于保存空字符
     newsh = zrealloc(sh, sizeof(struct sdshdr)+newlen+1);
     if (newsh == NULL) return NULL;
 
@@ -243,17 +243,17 @@ sds sdscatlen(sds s, const void *t, size_t len) {
     struct sdshdr *sh;
     size_t curlen = sdslen(s);
 	
-	// 如果s的剩余空间不足，需要扩展当前buf数组
+    // 如果s的剩余空间不足，需要扩展当前buf数组
     s = sdsMakeRoomFor(s,len);
     if (s == NULL) return NULL;
-	// 根据buf数组地址计算出对应的sds地址
+    // 根据buf数组地址计算出对应的sds地址
     sh = (void*) (s-(sizeof(struct sdshdr)));
     memcpy(s+curlen, t, len);
-	// 更新字符串长度
+    // 更新字符串长度
     sh->len = curlen+len;
-	// 更新未使用字符串长度
+    // 更新未使用字符串长度
     sh->free = sh->free-len;
-	// 设置字符串最后一个字符为空字符
+    // 设置字符串最后一个字符为空字符
     s[curlen+len] = '\0';
     return s;
 }
