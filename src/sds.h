@@ -39,11 +39,23 @@
 typedef char *sds;
 
 struct sdshdr {
+	// 记录buf数组中已使用字节的数量，等于SDS所保存字符串的长度
     unsigned int len;
+	
+	// 记录buf数组中未使用字节的数量
     unsigned int free;
+	
+	// 字节数组，用于保存字符串
+	// sdshdr使用柔性数组来保存，给结构体内的数据分配一个连续的内存，好处有两点：1.方便内存释放；2.有利于访问速度；
     char buf[];
 };
 
+/*
+ * sizeof(struct sdshdr) = sizeof(int) + sizeof(int)
+ * 在C语言中，在结构体最后定义一个空数组是一种常用技巧，相比于指针，空数组不占用任何空间。
+ * 关于柔性数组，可参考：https://coolshell.cn/articles/11377.html
+ * 因此，s - sizeof(struct sdshdr)等于sdshdr的地址值。
+ */
 static inline size_t sdslen(const sds s) {
     struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
     return sh->len;
