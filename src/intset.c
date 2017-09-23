@@ -155,22 +155,31 @@ static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos) {
 
 /* Upgrades the intset to a larger encoding and inserts the given integer. */
 static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
+    // 整数集合当前的编码方式
     uint8_t curenc = intrev32ifbe(is->encoding);
+    // 待插入元素对应的编码方式
     uint8_t newenc = _intsetValueEncoding(value);
     int length = intrev32ifbe(is->length);
+    // 新插入的元素要么比整数集合中所有的元素大，要么整数集合中所有的元素小，
+    // 因此新插入的元素只可能是整数集合的第一个或者最后一个元素。
     int prepend = value < 0 ? 1 : 0;
 
     /* First set new encoding and resize */
+    // 更新整数集合的编码方式
     is->encoding = intrev32ifbe(newenc);
+    // 扩充整数集合底层数组的存储空间，数组的元素个数为原数组长度 + 1
     is = intsetResize(is,intrev32ifbe(is->length)+1);
 
     /* Upgrade back-to-front so we don't overwrite values.
      * Note that the "prepend" variable is used to make sure we have an empty
      * space at either the beginning or the end of the intset. */
+    // _intsetGetEncoded：给定编码和位置，返回整数集合对应的值
+    // 将整数集合中原有的元素重新存储，如果prepend=0，相对位置不变，如果prepend=1，相对位置往后移动一位
     while(length--)
         _intsetSet(is,length+prepend,_intsetGetEncoded(is,length,curenc));
 
     /* Set the value at the beginning or the end. */
+    // 插入新增加的元素
     if (prepend)
         _intsetSet(is,0,value);
     else
@@ -202,6 +211,7 @@ static void intsetMoveTail(intset *is, uint32_t from, uint32_t to) {
 
 /* Insert an integer in the intset */
 intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
+    // 获取待插入元素的类型
     uint8_t valenc = _intsetValueEncoding(value);
     uint32_t pos;
     if (success) *success = 1;
@@ -209,6 +219,7 @@ intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
     /* Upgrade encoding if necessary. If we need to upgrade, we know that
      * this value should be either appended (if > 0) or prepended (if < 0),
      * because it lies outside the range of existing values. */
+    // 如果待插入元素的类型大于整数集合的当前类型，那么需要进行升级
     if (valenc > intrev32ifbe(is->encoding)) {
         /* This always succeeds, so we don't need to curry *success. */
         return intsetUpgradeAndAdd(is,value);

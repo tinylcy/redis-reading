@@ -69,7 +69,9 @@ zskiplist *zslCreate(void) {
     zsl = zmalloc(sizeof(*zsl));
     zsl->level = 1;
     zsl->length = 0;
+    // level的值初始化为 ZSKIPLIST_MAXLEVEL
     zsl->header = zslCreateNode(ZSKIPLIST_MAXLEVEL,0,NULL);
+    // 初始化每个level的前进指针和跨度
     for (j = 0; j < ZSKIPLIST_MAXLEVEL; j++) {
         zsl->header->level[j].forward = NULL;
         zsl->header->level[j].span = 0;
@@ -107,16 +109,23 @@ int zslRandomLevel(void) {
     return (level<ZSKIPLIST_MAXLEVEL) ? level : ZSKIPLIST_MAXLEVEL;
 }
 
+/*
+ * 插入
+ */
 zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     unsigned int rank[ZSKIPLIST_MAXLEVEL];
     int i, level;
 
     redisAssert(!isnan(score));
+    // 跳跃表头节点
     x = zsl->header;
+    // 找到每一层（0 ~ level-1）需要更新的节点
     for (i = zsl->level-1; i >= 0; i--) {
         /* store rank that is crossed to reach the insert position */
         rank[i] = i == (zsl->level-1) ? 0 : rank[i+1];
+		// 1.当前节点的前进节点不为空
+        // 2.待插入节点的score大于下一个节点的score || 如果待插入节点的score等于下一个节点的score，那么待插入节点的成员大于下一个节点的成员
         while (x->level[i].forward &&
             (x->level[i].forward->score < score ||
                 (x->level[i].forward->score == score &&
@@ -130,7 +139,9 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
      * scores, and the re-insertion of score and redis object should never
      * happen since the caller of zslInsert() should test in the hash table
      * if the element is already inside or not. */
+    // 待插入节点的level值随机产生
     level = zslRandomLevel();
+    // 如果待插入节点的level大于目前跳跃表的最大level，更新跳跃表的level
     if (level > zsl->level) {
         for (i = zsl->level; i < level; i++) {
             rank[i] = 0;
@@ -139,7 +150,9 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
         }
         zsl->level = level;
     }
+    // 创建并初始化待插入节点
     x = zslCreateNode(level,score,obj);
+    // 更新待插入节点每一层的前进节点
     for (i = 0; i < level; i++) {
         x->level[i].forward = update[i]->level[i].forward;
         update[i]->level[i].forward = x;
@@ -159,6 +172,7 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
         x->level[0].forward->backward = x;
     else
         zsl->tail = x;
+    // 更新跳跃表长度
     zsl->length++;
     return x;
 }
