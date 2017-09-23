@@ -52,6 +52,7 @@ static uint8_t _intsetValueEncoding(int64_t v) {
 }
 
 /* Return the value at pos, given an encoding. */
+/* 根据元素位置和编码获取元素的值 */
 static int64_t _intsetGetEncoded(intset *is, int pos, uint8_t enc) {
     int64_t v64;
     int32_t v32;
@@ -78,9 +79,10 @@ static int64_t _intsetGet(intset *is, int pos) {
 }
 
 /* Set the value at pos, using the configured encoding. */
+/* 在集合的pos位置处设置value */
 static void _intsetSet(intset *is, int pos, int64_t value) {
     uint32_t encoding = intrev32ifbe(is->encoding);
-
+    // 通过对指针的强制类型转换改变内存的语义，并设置内存值
     if (encoding == INTSET_ENC_INT64) {
         ((int64_t*)is->contents)[pos] = value;
         memrev64ifbe(((int64_t*)is->contents)+pos);
@@ -112,26 +114,34 @@ static intset *intsetResize(intset *is, uint32_t len) {
  * sets "pos" to the position of the value within the intset. Return 0 when
  * the value is not present in the intset and sets "pos" to the position
  * where "value" can be inserted. */
+/* 
+ * 返回 1 代表元素存在于整数集合中，同时设置pos的值为value在整数集合中的位置
+ * 返回 0 代表元素不存在，同时设置pos的值为value可以插入到整数集合中的位置
+ */
 static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos) {
     int min = 0, max = intrev32ifbe(is->length)-1, mid = -1;
     int64_t cur = -1;
 
     /* The value can never be found when the set is empty */
+    // 如果整数集合的长度为0，返回0，设置pos的值为0（表示可以插入到整数集合的第一个位置）
     if (intrev32ifbe(is->length) == 0) {
         if (pos) *pos = 0;
         return 0;
     } else {
         /* Check for the case where we know we cannot find the value,
          * but do know the insert position. */
+        // 如果value大于整数集合的最后一个元素（最大元素），设置pos的值等于is->length
         if (value > _intsetGet(is,intrev32ifbe(is->length)-1)) {
             if (pos) *pos = intrev32ifbe(is->length);
             return 0;
+        // 如果value小于整数集合的第一个元素（最小元素），设置pos的值等于0
         } else if (value < _intsetGet(is,0)) {
             if (pos) *pos = 0;
             return 0;
         }
     }
 
+    // 二分查找
     while(max >= min) {
         mid = ((unsigned int)min + (unsigned int)max) >> 1;
         cur = _intsetGet(is,mid);
@@ -147,6 +157,7 @@ static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos) {
     if (value == cur) {
         if (pos) *pos = mid;
         return 1;
+    // 二分查找并没有找到value，设置pos的值等于min
     } else {
         if (pos) *pos = min;
         return 0;
@@ -227,16 +238,19 @@ intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
         /* Abort if the value is already present in the set.
          * This call will populate "pos" with the right position to insert
          * the value when it cannot be found. */
+        // pos等于value插入整数集合的位置
         if (intsetSearch(is,value,&pos)) {
             if (success) *success = 0;
             return is;
         }
-
+        // 对整数集合进行扩容（如果需要）
         is = intsetResize(is,intrev32ifbe(is->length)+1);
         if (pos < intrev32ifbe(is->length)) intsetMoveTail(is,pos,pos+1);
     }
-
+ 
+    // 在整数集合的pos位置处设置value
     _intsetSet(is,pos,value);
+    // 更新length值
     is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
     return is;
 }
